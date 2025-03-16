@@ -7,7 +7,7 @@ import ExchangeRate from '@/components/dashboard/ExchangeRate.vue';
 import FinancialRate from '@/components/dashboard/FinancialRate.vue';
 import InflasionRate from '@/components/dashboard/InflasionRate.vue';
 import LogsHistory from '@/components/dashboard/LogsHistory.vue';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 
 const logStats = ref([]);
 
@@ -27,10 +27,6 @@ const getStatByServiceName = (serviceName) => {
 
 onMounted(() => {
     loadLogStats();
-    const interval = setInterval(loadLogStats, 1500);
-    onUnmounted(() => {
-        clearInterval(interval);
-    });
 });
 </script>
 
