@@ -1,0 +1,19 @@
+# Node modules y caché
+node_modules
+.pnpm-store
+
+# Archivos de configuración locales
+.env*
+!.env.production
+
+# Archivos del editor
+.vscode
+.idea
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
