@@ -1,13 +1,16 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
 import { fetchLogs } from '@/api/dashboardAPI';
 import { useToast } from 'primevue/usetoast';
+import { computed, onMounted, ref } from 'vue';
 const toast = useToast();
 
-const logs = ref([]);
+const logsData = ref([]);
 const fromDate = ref(null);
 const toDate = ref(null);
-const globalFilter = ref('');
+
+const page = ref(1);
+const limit = ref(10);
+const total = ref(0);
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
     id: { value: null, matchMode: 'contains' },
@@ -37,6 +40,7 @@ const validateDates = () => {
 const resetDates = () => {
     fromDate.value = null;
     toDate.value = null;
+    page.value = 1;
     loadLogs();
 };
 const formmatterDate = (date) => {
@@ -58,7 +62,10 @@ const formatDate = (date) => {
 const loadLogs = async () => {
     if (!validateDates()) return;
     try {
-        const params = {};
+        const params = {
+            page: page.value,
+            limit: limit.value
+        };
 
         if (fromDate.value) {
             params.from = formatDate(fromDate.value);
@@ -67,14 +74,20 @@ const loadLogs = async () => {
         if (toDate.value) {
             params.to = formatDate(toDate.value);
         }
-        const logsData = await fetchLogs(params);
-        logs.value = logsData.map((log) => ({
+        const { logs, totalRecords } = await fetchLogs(params);
+        total.value = totalRecords || 0;
+        logsData.value = logs.map((log) => ({
             ...log,
             createdAt: formmatterDate(log.createdAt)
         }));
     } catch (err) {
         console.error(err);
     }
+};
+const onPageChange = (event) => {
+    page.value = event.page + 1;
+    limit.value = event.rows;
+    loadLogs();
 };
 
 const disableButtom = computed(() => !fromDate.value || !toDate.value);
@@ -96,9 +109,9 @@ onMounted(() => {
                 <DatePicker id="datepicker-12h" v-model="toDate" showIcon showTime hourFormat="12" />
             </div>
             <Button label="Filter" icon="pi pi-filter" class="ml-4" @click="loadLogs" :disabled="disableButtom" />
-            <Button label="Reset" @click="resetDates" class="ml-2" severity="secondary" />
+            <Button label="Reload" @click="resetDates" class="ml-2" severity="secondary" />
         </div>
-        <DataTable :value="logs" :rows="10" :paginator="true" responsiveLayout="scroll" v-model:filters="filters">
+        <DataTable :value="logsData" :paginator="true" :rows="limit" :first="(page - 1) * limit" :totalRecords="total" :rowsPerPageOptions="[10, 20, 50]" :lazy="true" @page="onPageChange" responsiveLayout="scroll" v-model:filters="filters">
             <template #header>
                 <div class="flex justify-end">
                     <IconField>
