@@ -2,6 +2,14 @@
 import { fetchLogs } from '@/api/dashboardAPI';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, ref } from 'vue';
+
+const debounce = (func, wait) => {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    };
+};
 const toast = useToast();
 
 const logsData = ref([]);
@@ -10,14 +18,8 @@ const toDate = ref(null);
 
 const page = ref(1);
 const limit = ref(10);
-const total = ref(0);
-const filters = ref({
-    global: { value: null, matchMode: 'contains' },
-    id: { value: null, matchMode: 'contains' },
-    serviceName: { value: null, matchMode: 'contains' },
-    ipAddress: { value: null, matchMode: 'contains' },
-    createdAt: { value: null, matchMode: 'contains' }
-});
+const totalRecords = ref(0);
+const globalSearch = ref('');
 
 const validateDates = () => {
     if (fromDate.value && toDate.value) {
@@ -74,8 +76,11 @@ const loadLogs = async () => {
         if (toDate.value) {
             params.to = formatDate(toDate.value);
         }
-        const { logs, totalRecords } = await fetchLogs(params);
-        total.value = totalRecords || 0;
+        if (globalSearch.value) {
+            params.search = globalSearch.value;
+        }
+        const { logs, total } = await fetchLogs(params);
+        totalRecords.value = total || 0;
         logsData.value = logs.map((log) => ({
             ...log,
             createdAt: formmatterDate(log.createdAt)
@@ -89,6 +94,10 @@ const onPageChange = (event) => {
     limit.value = event.rows;
     loadLogs();
 };
+const debouncedSearch = debounce(() => {
+    page.value = 1;
+    loadLogs();
+}, 300);
 
 const disableButtom = computed(() => !fromDate.value || !toDate.value);
 onMounted(() => {
@@ -111,21 +120,21 @@ onMounted(() => {
             <Button label="Filter" icon="pi pi-filter" class="ml-4" @click="loadLogs" :disabled="disableButtom" />
             <Button label="Reload" @click="resetDates" class="ml-2" severity="secondary" />
         </div>
-        <DataTable :value="logsData" :paginator="true" :rows="limit" :first="(page - 1) * limit" :totalRecords="total" :rowsPerPageOptions="[10, 20, 50]" :lazy="true" @page="onPageChange" responsiveLayout="scroll" v-model:filters="filters">
+        <DataTable :value="logsData" :paginator="true" :rows="limit" :first="(page - 1) * limit" :totalRecords="totalRecords" :rowsPerPageOptions="[10, 20, 50]" @page="onPageChange" :lazy="true" responsiveLayout="scroll">
             <template #header>
                 <div class="flex justify-end">
                     <IconField>
                         <InputIcon>
                             <i class="pi pi-search" />
                         </InputIcon>
-                        <InputText v-model="filters['global'].value" placeholder="Keyword Search" />
+                        <InputText v-model="globalSearch" @input="debouncedSearch" placeholder="Search by keyword" />
                     </IconField>
                 </div>
             </template>
-            <Column field="id" header="ID" :sortable="true" style="width: 20%" :filter="true" :filterMatchMode="'contains'"></Column>
-            <Column field="serviceName" header="Service Name" :sortable="true" style="width: 30%" :filter="true" :filterMatchMode="'contains'"></Column>
-            <Column field="ipAddress" header="IP Address" :sortable="true" style="width: 30%" :filter="true" :filterMatchMode="'contains'"></Column>
-            <Column field="createdAt" header="Date of Call" :sortable="true" style="width: 40%" :filter="true" :filterMatchMode="'contains'">
+            <Column field="id" header="ID" :sortable="true" style="width: 20%"></Column>
+            <Column field="serviceName" header="Service Name" :sortable="true" style="width: 30%"></Column>
+            <Column field="ipAddress" header="IP Address" :sortable="true" style="width: 30%"></Column>
+            <Column field="createdAt" header="Date of Call" :sortable="true" style="width: 40%">
                 <template #body="slotProps">
                     {{ slotProps.data.createdAt.toLocaleString() }}
                 </template>
